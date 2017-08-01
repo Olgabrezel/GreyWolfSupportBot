@@ -1,0 +1,10 @@
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\GreyWolfSupportBot.exe.config
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\GreyWolfSupportBot.exe
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\GreyWolfSupportBot.pdb
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\Newtonsoft.Json.dll
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\System.Runtime.InteropServices.RuntimeInformation.dll
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\Telegram.Bot.dll
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\Newtonsoft.Json.xml
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\obj\Debug\GreyWolfSupportBot.csprojResolveAssemblyReference.cache
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\obj\Debug\GreyWolfSupportBot.exe
+c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\obj\Debug\GreyWolfSupportBot.pdb
