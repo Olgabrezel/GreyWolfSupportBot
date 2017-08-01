@@ -45,7 +45,7 @@ namespace GreyWolfSupportBot
             {
                 Message msg = e.Message;
 
-                if (msg.Chat.Id == Support.Id)
+                if (msg.Chat.Id == Support.Id && !string.IsNullOrEmpty(msg.Text))
                 {
                     if (msg.Text.ToLower().StartsWith("banana") && !BananaUsers.Contains(msg.From.Id))
                     {
@@ -71,6 +71,15 @@ namespace GreyWolfSupportBot
                                 case "/reloadadmins":
                                     SupportAdmins = GetSupportAdmins();
                                     Bot.Reply("Reloaded admins:\n\n" + string.Join("\n", SupportAdmins), msg);
+                                    break;
+
+                                case "/setpin":
+                                    if (msg.ReplyToMessage != null)
+                                    {
+                                        PinmessageId = msg.ReplyToMessage.MessageId;
+                                        Bot.Reply("Successfully set that message as pin message!", msg);
+                                    }
+                                    else Bot.Reply("You need to reply to the pin message!", msg);
                                     break;
                             }
                         }
@@ -145,7 +154,7 @@ namespace GreyWolfSupportBot
             {
                 try
                 {
-                    var t = Api.SendTextMessageAsync(chatid, text, parseMode, disableWebPagePreview, replyMarkup: replyMarkup);
+                    var t = Api.SendTextMessageAsync(chatid, text, parseMode, disableWebPagePreview, replyMarkup: replyMarkup, replyToMessageId: messageid);
                     t.Wait();
                     return t.Result;
                 }
