@@ -19,23 +19,28 @@ namespace GreyWolfSupportBot
         public static readonly Chat Support = Bot.Api.GetChatAsync(/*-1001060486754*/-1001127004418).Result;
         public static List<int> BananaUsers = GetBananaUsers();
         public static List<int> SupportAdmins = GetSupportAdmins();
-        public static string IssuePinText = "<b>We are having issues!</b>";
-        public static string IssueWelcome = "/welcome <b>$name</b> (ID: <code>$id</code>)! We are having issues!";
-        public static string StandardWelcome = "/welcome <b>$name</b> (ID: <code>$id</code>)! There are no issues right now!";
-        public static int PinmessageId = 6;
+        public static string IssuePinText;
+        public static string IssueWelcome;
+        public static string StandardWelcome;
+        public static int PinmessageId;
 
         public static bool learning = false;
         public static List<int> temp;
+
+        public const int serverOwner = 295152997;
+        public static bool running = true;
 
 
         static void Main(string[] args)
         {
             Bot.Api.OnMessage += Bot_OnMessage;
             Bot.Api.OnInlineQuery += Bot_OnInlineQuery;
+            ReadMessages();
             Bot.Api.StartReceiving();
             Bot.Send("Started Up!", Support.Id);
+            Console.Write("Program running!" + Environment.NewLine + Environment.NewLine);
 
-            while (true)
+            while (running)
             {
                 System.Threading.Thread.Sleep(1000);
             }
@@ -47,59 +52,111 @@ namespace GreyWolfSupportBot
             {
                 Message msg = e.Message;
 
-                if (msg.Chat.Id == Support.Id && !string.IsNullOrEmpty(msg.Text))
+                if (!string.IsNullOrEmpty(msg.Text))
                 {
-                    if (msg.Text.ToLower().StartsWith("banana") && !BananaUsers.Contains(msg.From.Id))
+                    if (msg.Chat.Id == Support.Id)
                     {
-                        BananaUsers.Add(msg.From.Id);
-                        WriteBananaUsers();
-                        Bot.Reply($"#bananacount {BananaUsers.Count}! Thanks for reading the pinned message!", msg);
-                    }
-                    if (SupportAdmins.Contains(msg.From.Id))
-                    {
-                        if (msg.Text == IssueWelcome)
+                        if (msg.Text.ToLower().Contains("banana") && !BananaUsers.Contains(msg.From.Id))
                         {
-                            var IssuePin = Bot.Reply(IssuePinText, Support.Id, PinmessageId);
-                            var IssueSuccess = Bot.Pin(Support.Id, IssuePin.MessageId);
+                            BananaUsers.Add(msg.From.Id);
+                            WriteBananaUsers();
+                            Bot.Reply($"#bananacount {BananaUsers.Count}! Thanks for reading the pinned message!", msg);
                         }
-                        else if (msg.Text == StandardWelcome)
+                        if (SupportAdmins.Contains(msg.From.Id))
                         {
-                            var NormalSuccess = Bot.Pin(Support.Id, PinmessageId);
-                        }
-                        else
-                        {
-                            switch (msg.Text.ToLower())
+                            if (msg.Text == IssueWelcome)
                             {
-                                case "/reloadadmins":
-                                    SupportAdmins = GetSupportAdmins();
-                                    Bot.Reply("Reloaded admins:\n\n" + string.Join("\n", SupportAdmins), msg);
-                                    break;
+                                var IssuePin = Bot.Reply(IssuePinText, Support.Id, PinmessageId);
+                                var IssueSuccess = Bot.Pin(Support.Id, IssuePin.MessageId);
+                            }
+                            else if (msg.Text == StandardWelcome)
+                            {
+                                var NormalSuccess = Bot.Pin(Support.Id, PinmessageId);
+                            }
+                            else
+                            {
+                                switch (msg.Text.ToLower())
+                                {
+                                    case "/reloadadmins":
+                                        SupportAdmins = GetSupportAdmins();
+                                        Bot.Reply("Reloaded admins:\n\n" + string.Join("\n", SupportAdmins), msg);
+                                        break;
 
-                                case "/setpin":
-                                    if (msg.ReplyToMessage != null)
-                                    {
-                                        PinmessageId = msg.ReplyToMessage.MessageId;
-                                        Bot.Reply("Successfully set that message as pin message!", msg);
-                                    }
-                                    else Bot.Reply("You need to reply to the pin message!", msg);
-                                    break;
+                                    case "/setpin":
+                                        if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
+                                        {
+                                            PinmessageId = msg.ReplyToMessage.MessageId;
+                                            WriteMessages();
+                                            Bot.Reply("Successfully set that message as pin message!", msg);
+                                        }
+                                        else Bot.Reply("You need to reply to the pin message!", msg);
+                                        break;
 
-                                case "/startlearn":
-                                    learning = true;
-                                    temp = new List<int>();
-                                    Bot.Reply("Banana learning active.", msg);
-                                    break;
+                                    case "/setissuewelcome":
+                                        if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
+                                        {
+                                            IssueWelcome = msg.ReplyToMessage.Text;
+                                            WriteMessages();
+                                            Bot.Reply("Issue welcome set!", msg);
+                                        }
+                                        else Bot.Reply("You need to reply to the issue welcome!", msg);
+                                        break;
 
-                                case "/finishlearn":
-                                    learning = false;
-                                    Bot.Reply(temp.Count + " new bananas have been learnt.", msg);
-                                    foreach (var t in temp) BananaUsers.Add(t);
-                                    WriteBananaUsers();
-                                    break;
+                                    case "/setwelcome":
+                                        if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
+                                        {
+                                            StandardWelcome = msg.ReplyToMessage.Text;
+                                            WriteMessages();
+                                            Bot.Reply("Welcome set!", msg);
+                                        }
+                                        else Bot.Reply("You need to reply to the welcome!", msg);
+                                        break;
+
+                                    case "/setissuepin":
+                                        if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
+                                        {
+                                            IssuePinText = msg.ReplyToMessage.Text;
+                                            WriteMessages();
+                                            Bot.Reply("Issue pin message set!", msg);
+                                        }
+                                        else Bot.Reply("You need to reply to the issue pin message!", msg);
+                                        break;
+                                }
                             }
                         }
                     }
                     if (learning && msg.ForwardFrom != null) temp.Add(msg.ForwardFrom.Id);
+
+                    if (SupportAdmins.Contains(msg.From.Id))
+                    {
+                        switch (msg.Text.ToLower())
+                        {
+                            case "/startlearning":
+                                learning = true;
+                                temp = new List<int>();
+                                Bot.Reply("Banana learning active.", msg);
+                                break;
+
+                            case "/finishlearning":
+                                learning = false;
+                                Bot.Reply(temp.Count + " bananas learnt.", msg);
+                                foreach (var t in temp.Where(x => !BananaUsers.Contains(x))) BananaUsers.Add(t);
+                                WriteBananaUsers();
+                                temp = null;
+                                break;
+                        }
+                    }
+
+                    if (msg.From.Id == serverOwner)
+                    {
+                        switch (msg.Text.ToLower())
+                        {
+                            case "/shutdown":
+                                Bot.Reply("Shutting down.", msg);
+                                running = false;
+                                break;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -221,6 +278,22 @@ namespace GreyWolfSupportBot
         public static List<int> GetSupportAdmins()
         {
             return Bot.Api.GetChatAdministratorsAsync(Support.Id).Result.Select(x => x.User.Id).ToList();
+        }
+
+        public static void ReadMessages()
+        {
+            PinmessageId = int.Parse(System.IO.File.ReadAllText("standardpin.txt"));
+            StandardWelcome = System.IO.File.ReadAllText("standardwelc.txt");
+            IssuePinText = System.IO.File.ReadAllText("issuepin.txt");
+            IssueWelcome = System.IO.File.ReadAllText("issuewelc.txt");
+        }
+
+        public static void WriteMessages()
+        {
+            System.IO.File.WriteAllText("standardpin.txt", $"{PinmessageId}");
+            System.IO.File.WriteAllText("standardwelc.txt", StandardWelcome);
+            System.IO.File.WriteAllText("issuepin.txt", IssuePinText);
+            System.IO.File.WriteAllText("issuewelc.txt", IssueWelcome);
         }
     }
 }
