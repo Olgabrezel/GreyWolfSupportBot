@@ -23,7 +23,9 @@ namespace GreyWolfSupportBot
         public static string IssueWelcome = "/welcome <b>$name</b> (ID: <code>$id</code>)! We are having issues!";
         public static string StandardWelcome = "/welcome <b>$name</b> (ID: <code>$id</code>)! There are no issues right now!";
         public static int PinmessageId = 6;
-        
+
+        public static bool learning = false;
+        public static List<int> temp;
 
 
         static void Main(string[] args)
@@ -81,9 +83,23 @@ namespace GreyWolfSupportBot
                                     }
                                     else Bot.Reply("You need to reply to the pin message!", msg);
                                     break;
+
+                                case "/startlearn":
+                                    learning = true;
+                                    temp = new List<int>();
+                                    Bot.Reply("Banana learning active.", msg);
+                                    break;
+
+                                case "/finishlearn":
+                                    learning = false;
+                                    Bot.Reply(temp.Count + " new bananas have been learnt.", msg);
+                                    foreach (var t in temp) BananaUsers.Add(t);
+                                    WriteBananaUsers();
+                                    break;
                             }
                         }
                     }
+                    if (learning && msg.ForwardFrom != null) temp.Add(msg.ForwardFrom.Id);
                 }
             }
             catch (Exception ex)
