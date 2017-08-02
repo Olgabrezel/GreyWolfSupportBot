@@ -71,7 +71,15 @@ namespace GreyWolfSupportBot
                             }
                             else if (msg.Text == StandardWelcome)
                             {
-                                var NormalSuccess = Bot.Pin(Support.Id, PinmessageId);
+                                try
+                                {
+                                    var NormalSuccess = Bot.Pin(Support.Id, PinmessageId);
+                                }
+                                catch (AggregateException ex)
+                                {
+                                    if (ex.InnerExceptions.Any(x => x.Message.ToLower().Contains("chat_not_modified"))) return;
+                                    throw ex;
+                                }
                             }
                             else
                             {
@@ -125,7 +133,7 @@ namespace GreyWolfSupportBot
                             }
                         }
                     }
-                    if (learning && msg.ForwardFrom != null) temp.Add(msg.ForwardFrom.Id);
+                    if (learning && msg.ForwardFrom != null && !temp.Contains(msg.ForwardFrom.Id)) temp.Add(msg.ForwardFrom.Id);
 
                     if (SupportAdmins.Contains(msg.From.Id))
                     {
