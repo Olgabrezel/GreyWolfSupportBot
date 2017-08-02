@@ -292,22 +292,26 @@ namespace GreyWolfSupportBot
 
         public static void ReadMessages()
         {
-            string PinmessageId = GetSetting("StandardPin");
-            string StandardWelcome = GetSetting("StandardWelc");
-            string IssuePinText = GetSetting("IssuePin");
-            string IssueWelcome = GetSetting("IssueWelc");
+            PinmessageId = int.Parse(GetSetting("StandardPin"));
+            StandardWelcome = GetSetting("StandardWelc");
+            IssuePinText = GetSetting("IssuePin");
+            IssueWelcome = GetSetting("IssueWelc");
         }
 
         public static void WriteMessages()
         {
-            System.IO.File.WriteAllText("standardpin.txt", $"{PinmessageId}");
-            System.IO.File.WriteAllText("standardwelc.txt", StandardWelcome);
-            System.IO.File.WriteAllText("issuepin.txt", IssuePinText);
-            System.IO.File.WriteAllText("issuewelc.txt", IssueWelcome);
+            SetSetting("StandardPin", $"{PinmessageId}");
+            SetSetting("StandardWelc", StandardWelcome);
+            SetSetting("IssuePin", IssuePinText);
+            SetSetting("IssueWelc", IssueWelcome);
         }
         public static string GetSetting(string key)
         {
             return ConfigurationManager.AppSettings[key];
+        }
+        public static void SetSetting(string key, string value)
+        {
+            ConfigurationManager.AppSettings[key] = value;
         }
     }
 }
