@@ -47,3 +47,4 @@ Temporary Items
 .apdisk
 bin/Debug/token.txt
 *.txt
+*.config

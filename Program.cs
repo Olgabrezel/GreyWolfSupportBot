@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,7 +28,7 @@ namespace GreyWolfSupportBot
         public static bool learning = false;
         public static List<int> temp;
 
-        public const int serverOwner = 295152997;
+        public static int serverOwner = Convert.ToInt32(GetSetting("Owner"));
         public static bool running = true;
 
 
@@ -256,9 +257,10 @@ namespace GreyWolfSupportBot
             {
                 get
                 {
-                    return System.IO.File.ReadAllText("token.txt");
+                    return GetSetting("Token");
                 }
             }
+
         }
 
         static class InlineResults
@@ -290,10 +292,10 @@ namespace GreyWolfSupportBot
 
         public static void ReadMessages()
         {
-            PinmessageId = int.Parse(System.IO.File.ReadAllText("standardpin.txt"));
-            StandardWelcome = System.IO.File.ReadAllText("standardwelc.txt");
-            IssuePinText = System.IO.File.ReadAllText("issuepin.txt");
-            IssueWelcome = System.IO.File.ReadAllText("issuewelc.txt");
+            string PinmessageId = GetSetting("StandardPin");
+            string StandardWelcome = GetSetting("StandardWelc");
+            string IssuePinText = GetSetting("IssuePin");
+            string IssueWelcome = GetSetting("IssueWelc");
         }
 
         public static void WriteMessages()
@@ -302,6 +304,10 @@ namespace GreyWolfSupportBot
             System.IO.File.WriteAllText("standardwelc.txt", StandardWelcome);
             System.IO.File.WriteAllText("issuepin.txt", IssuePinText);
             System.IO.File.WriteAllText("issuewelc.txt", IssueWelcome);
+        }
+        public static string GetSetting(string key)
+        {
+            return ConfigurationManager.AppSettings[key];
         }
     }
 }
