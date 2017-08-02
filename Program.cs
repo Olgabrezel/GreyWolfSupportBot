@@ -20,15 +20,12 @@ namespace GreyWolfSupportBot
         public static readonly Chat Support = Bot.Api.GetChatAsync(/*-1001060486754*/-1001127004418).Result;
         public static List<int> BananaUsers = GetBananaUsers();
         public static List<int> SupportAdmins = GetSupportAdmins();
-        public static string IssuePinText;
-        public static string IssueWelcome;
-        public static string StandardWelcome;
-        public static int PinmessageId;
+
+        public static Config conf;
 
         public static bool learning = false;
         public static List<int> temp;
 
-        public static int serverOwner = Convert.ToInt32(GetSetting("Owner"));
         public static bool running = true;
 
 
@@ -36,7 +33,7 @@ namespace GreyWolfSupportBot
         {
             Bot.Api.OnMessage += Bot_OnMessage;
             Bot.Api.OnInlineQuery += Bot_OnInlineQuery;
-            ReadMessages();
+            ReadConfig();
             Bot.Api.StartReceiving();
             Bot.Send("Started Up!", Support.Id);
             Console.Write("Program running!" + Environment.NewLine + Environment.NewLine);
@@ -65,16 +62,16 @@ namespace GreyWolfSupportBot
                         }
                         if (SupportAdmins.Contains(msg.From.Id))
                         {
-                            if (msg.Text == IssueWelcome)
+                            if (msg.Text == conf.IssueWelcome)
                             {
-                                var IssuePin = Bot.Reply(IssuePinText, Support.Id, PinmessageId);
+                                var IssuePin = Bot.Reply(conf.IssuePinText, Support.Id, conf.PinmessageId);
                                 var IssueSuccess = Bot.Pin(Support.Id, IssuePin.MessageId);
                             }
-                            else if (msg.Text == StandardWelcome)
+                            else if (msg.Text == conf.StandardWelcome)
                             {
                                 try
                                 {
-                                    var NormalSuccess = Bot.Pin(Support.Id, PinmessageId);
+                                    var NormalSuccess = Bot.Pin(Support.Id, conf.PinmessageId);
                                 }
                                 catch (AggregateException ex)
                                 {
@@ -84,7 +81,7 @@ namespace GreyWolfSupportBot
                             }
                             else
                             {
-                                switch (msg.Text.ToLower())
+                                switch (msg.Text.ToLower().Replace('@' + Bot.Me.Username.ToLower(), ""))
                                 {
                                     case "/reloadadmins":
                                         SupportAdmins = GetSupportAdmins();
@@ -94,8 +91,8 @@ namespace GreyWolfSupportBot
                                     case "/setpin":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            PinmessageId = msg.ReplyToMessage.MessageId;
-                                            WriteMessages();
+                                            conf.PinmessageId = msg.ReplyToMessage.MessageId;
+                                            WriteConfig();
                                             Bot.Reply("Successfully set that message as pin message!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the pin message!", msg);
@@ -104,8 +101,8 @@ namespace GreyWolfSupportBot
                                     case "/setissuewelcome":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            IssueWelcome = msg.ReplyToMessage.Text;
-                                            WriteMessages();
+                                            conf.IssueWelcome = msg.ReplyToMessage.Text;
+                                            WriteConfig();
                                             Bot.Reply("Issue welcome set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue welcome!", msg);
@@ -114,8 +111,8 @@ namespace GreyWolfSupportBot
                                     case "/setwelcome":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            StandardWelcome = msg.ReplyToMessage.Text;
-                                            WriteMessages();
+                                            conf.StandardWelcome = msg.ReplyToMessage.Text;
+                                            WriteConfig();
                                             Bot.Reply("Welcome set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the welcome!", msg);
@@ -124,8 +121,8 @@ namespace GreyWolfSupportBot
                                     case "/setissuepin":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            IssuePinText = msg.ReplyToMessage.Text;
-                                            WriteMessages();
+                                            conf.IssuePinText = msg.ReplyToMessage.Text;
+                                            WriteConfig();
                                             Bot.Reply("Issue pin message set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue pin message!", msg);
@@ -138,7 +135,7 @@ namespace GreyWolfSupportBot
 
                     if (SupportAdmins.Contains(msg.From.Id))
                     {
-                        switch (msg.Text.ToLower())
+                        switch (msg.Text.ToLower().Replace('@' + Bot.Me.Username.ToLower(), ""))
                         {
                             case "/startlearning":
                                 learning = true;
@@ -156,7 +153,7 @@ namespace GreyWolfSupportBot
                         }
                     }
 
-                    if (msg.From.Id == serverOwner)
+                    if (msg.From.Id == conf.ServerOwner)
                     {
                         switch (msg.Text.ToLower())
                         {
@@ -257,7 +254,8 @@ namespace GreyWolfSupportBot
             {
                 get
                 {
-                    return GetSetting("Token");
+                    ReadConfig();
+                    return conf.BotToken;
                 }
             }
 
@@ -268,9 +266,27 @@ namespace GreyWolfSupportBot
             public static readonly InlineQueryResultArticle[] NotAdmin = new[] { new InlineQueryResultArticle() { Id = "NotAdmin", Title = "You are not support admin!", InputMessageContent = new InputTextMessageContent() { MessageText = "Ooops! I just tried to use the support bot inline, but I am not a support admin!" } } };
             public static readonly InlineQueryResultArticle[] Admin = new[]
             {
-                new InlineQueryResultArticle() { Id = "IssueWelcome", Title = "Issue Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = IssueWelcome } },
-                new InlineQueryResultArticle() { Id = "NormalWelcome", Title = "Standard Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = StandardWelcome } },
+                new InlineQueryResultArticle() { Id = "IssueWelcome", Title = "Issue Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = conf.IssueWelcome } },
+                new InlineQueryResultArticle() { Id = "NormalWelcome", Title = "Standard Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = conf.StandardWelcome } },
             };
+        }
+
+        public class Config
+        {
+            public int ServerOwner { get; set; }
+            public string IssuePinText { get; set; }
+            public string IssueWelcome { get; set; }
+            public string StandardWelcome { get; set; }
+            public int PinmessageId { get; set; }
+            public string BotToken { get; set; }
+        }
+        public static void WriteConfig()
+        {
+            System.IO.File.WriteAllText("config.txt", JsonConvert.SerializeObject(conf));
+        }
+        public static void ReadConfig()
+        {
+            conf = JsonConvert.DeserializeObject<Config>(System.IO.File.ReadAllText("config.txt"));
         }
 
         public static List<int> GetBananaUsers()
@@ -288,30 +304,6 @@ namespace GreyWolfSupportBot
         public static List<int> GetSupportAdmins()
         {
             return Bot.Api.GetChatAdministratorsAsync(Support.Id).Result.Select(x => x.User.Id).ToList();
-        }
-
-        public static void ReadMessages()
-        {
-            PinmessageId = int.Parse(GetSetting("StandardPin"));
-            StandardWelcome = GetSetting("StandardWelc");
-            IssuePinText = GetSetting("IssuePin");
-            IssueWelcome = GetSetting("IssueWelc");
-        }
-
-        public static void WriteMessages()
-        {
-            SetSetting("StandardPin", $"{PinmessageId}");
-            SetSetting("StandardWelc", StandardWelcome);
-            SetSetting("IssuePin", IssuePinText);
-            SetSetting("IssueWelc", IssueWelcome);
-        }
-        public static string GetSetting(string key)
-        {
-            return ConfigurationManager.AppSettings[key];
-        }
-        public static void SetSetting(string key, string value)
-        {
-            ConfigurationManager.AppSettings[key] = value;
         }
     }
 }
