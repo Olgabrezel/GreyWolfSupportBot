@@ -4,5 +4,5 @@
    "IssueWelcome":"/welcome Hello <b>$name</b> (ID: <code>$id</code>)! We are aware the bot is experiencing issues! Our dev team is working on fixing that, so please be patient! In the meanwhile, to ensure the group's order and to protect the bot from further issues, please DO NOT USE COMMANDS, including ping! The less commands the bot is sent, the faster it'll recover. On times of stress like this one, we kick fast. Do not be off-topic or use commands in this group, or you'll be immediately kicked!",
    "StandardWelcome":"/welcome Welcome, <b>$name</b> (id = <code>$id</code>) to the official Grey Wolf support group.\nLearn how to help us <a href=\n\"t.me/greywolfdev/916\">here</a>.\n\nGames do not work here,  pm <a href=\"http://t.me/werewolfbot?start=\">Werewolf Moderator</a> and click grouplist.\n\n<b>Ads or disrespect will result in plain ban</b>",
    "PinmessageId":6,
-   "BotToken":"449251626:AAGBc1xtPYpbwbVr2kGxfUNeRSRZx6eXkHE"
+   "BotToken":"123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
 }
