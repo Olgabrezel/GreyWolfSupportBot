@@ -27,6 +27,7 @@ namespace GreyWolfSupportBot
         public static List<int> temp;
 
         public static bool running = true;
+        public static readonly DateTime starttime = DateTime.UtcNow;
 
 
         static void Main(string[] args)
@@ -50,7 +51,7 @@ namespace GreyWolfSupportBot
             {
                 Message msg = e.Message;
 
-                if (!string.IsNullOrEmpty(msg.Text))
+                if (!string.IsNullOrEmpty(msg.Text) && msg.Date.AddSeconds(-5) >= starttime)
                 {
                     if (msg.Chat.Id == Support.Id)
                     {
