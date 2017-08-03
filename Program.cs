@@ -264,11 +264,33 @@ namespace GreyWolfSupportBot
 
         static class InlineResults
         {
-            public static readonly InlineQueryResultArticle[] NotAdmin = new[] { new InlineQueryResultArticle() { Id = "NotAdmin", Title = "You are not support admin!", InputMessageContent = new InputTextMessageContent() { MessageText = "Ooops! I just tried to use the support bot inline, but I am not a support admin!" } } };
+            public static readonly InlineQueryResultArticle[] NotAdmin = new[]
+            {
+                new InlineQueryResultArticle()
+                {
+                    Id = "NotAdmin", Title = "You are not support admin!", InputMessageContent = new InputTextMessageContent()
+                    {
+                        MessageText = "Ooops! I just tried to use the support bot inline, but I am not a support admin!"
+                    }
+                }
+            };
             public static readonly InlineQueryResultArticle[] Admin = new[]
             {
-                new InlineQueryResultArticle() { Id = "IssueWelcome", Title = "Issue Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = conf.IssueWelcome } },
-                new InlineQueryResultArticle() { Id = "NormalWelcome", Title = "Standard Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = conf.StandardWelcome } },
+                new InlineQueryResultArticle()
+                {
+                    Id = "IssueWelcome", Title = "Issue Welcome & Pin", InputMessageContent = new InputTextMessageContent()
+                    {
+                        MessageText = conf.IssueWelcome
+                    }
+                },
+
+                new InlineQueryResultArticle()
+                {
+                    Id = "NormalWelcome", Title = "Standard Welcome & Pin", InputMessageContent = new InputTextMessageContent()
+                    {
+                        MessageText = conf.StandardWelcome
+                    }
+                },
             };
         }
 
