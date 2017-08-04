@@ -359,15 +359,40 @@ namespace GreyWolfSupportBot
         {
             public static void FirstTime()
             {
-                Console.WriteLine("First use configuration");
-                Console.WriteLine("Enter the bot token, as given by @Botfather");
-                string token = Console.ReadLine(); // INSERT TOKEN HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE TOKEN AGAIN.
-                Console.WriteLine("Enter your user ID");
-                int owner = Convert.ToInt32(Console.ReadLine()); // INSERT OWNER ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
-                Console.WriteLine("Enter the chat ID of the chat your bot will be working in");
-                string support = Console.ReadLine(); // INSERT SUPPORT ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
+                bool rightFormat = false;
+                string token;
+                int owner;
+                string support;
 
-                if (string.IsNullOrEmpty(token) | owner == 0 | string.IsNullOrEmpty(support)) throw new NotImplementedException("You need to enter a token, owner ID and support ID before first use (see lines above)!");
+                Console.WriteLine("First use configuration");
+
+                do
+                {
+                    Console.WriteLine("Enter the bot token, as given by @Botfather");
+                    token = Console.ReadLine();
+                    rightFormat = token.Split(':').Count() == 2 && int.TryParse(token.Split(':')[0], out int dummy);
+                }
+                while (!rightFormat);
+
+                rightFormat = false;
+
+                do
+                {
+                    Console.WriteLine("Enter your user ID");
+                    string dummy = Console.ReadLine();
+                    rightFormat = int.TryParse(dummy, out owner) && owner > 0;
+                }
+                while (!rightFormat);
+
+                rightFormat = false;
+
+                do
+                {
+                    Console.WriteLine("Enter the chat ID of the chat your bot will be working in");
+                    support = Console.ReadLine();
+                    rightFormat = long.TryParse(support, out long dummy) && dummy < 0;
+                }
+                while (!rightFormat);
 
                 SQLiteConnection.CreateFile($"{Directory}\\{Database}");
                 RunNoResultQuery("create table botadmins (id int primary key not null unique)");
@@ -375,6 +400,8 @@ namespace GreyWolfSupportBot
                 RunNoResultQuery("create table config (token varchar(255), defaultpin int, defaultwelc varchar(255), issuepin varchar(255), issuewelc varchar(255), supportid varchar(255))");
                 RunNoResultQuery($"insert into botadmins values ({owner})");
                 RunNoResultQuery($"insert into config values ('{token}', 10, 'dummy welcome 1', 'dummy pin', 'dummy welcome 2', '{support}')");
+
+                Console.Clear();
             }
 
             public static void RunNoResultQuery(string query)
