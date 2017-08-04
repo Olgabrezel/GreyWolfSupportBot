@@ -22,7 +22,7 @@ namespace GreyWolfSupportBot
         public static long AdminchatId;
         public static List<int> BananaUsers;
         public static List<int> SupportAdmins;
-        public static List<int> BotAdmins;
+        public static Dictionary<int, bool> BotAdmins;
         public static Dictionary<long, string> UnpreferredGroups;
         public static Dictionary<long, Message> UnpreferredGroupsHandling = new Dictionary<long, Message>();
         public static string Token;
@@ -88,7 +88,7 @@ namespace GreyWolfSupportBot
                     error += "\n\n" + ex.Message;
                 }
                 error += "\n\n" + ex.StackTrace;
-                Bot.Send(error, BotAdmins[0]);
+                Bot.Send(error, BotAdmins.First().Key);
             }
         }
 
@@ -96,6 +96,8 @@ namespace GreyWolfSupportBot
         {
             try
             {
+                if (!running) return;
+
                 Message msg = e.Message;
 
                 if (!string.IsNullOrEmpty(msg.Text) && msg.Date >= starttime.AddSeconds(5))
@@ -138,7 +140,7 @@ namespace GreyWolfSupportBot
                                     case "/reloadadmins":
                                         SupportAdmins = GetSupportAdmins();
                                         BotAdmins = SQL.GetBotAdmins();
-                                        Bot.Reply("Reloaded admins:\n\n<b>Support admins:</b>" + string.Join("\n", SupportAdmins) + "\n\n<b>Bot admins:</b>\n" + string.Join("\n", BotAdmins), msg);
+                                        Bot.Reply("<b>RELOADED ADMINS:</b>\n\n<b>Support admins:</b>\n" + string.Join("\n", SupportAdmins) + "\n\n<b>Bot admins:</b>\n" + string.Join("\n", BotAdmins), msg);
                                         break;
 
                                     case "/setpin":
@@ -193,88 +195,96 @@ namespace GreyWolfSupportBot
                         }
                     }
 
-                    if (BotAdmins.Contains(msg.From.Id))
+                    if (BotAdmins.ContainsKey(msg.From.Id))
                     {
                         long id;
 
                         switch (args[0].ToLower().Replace('@' + Bot.Me.Username, ""))
                         {
                             case "/shutdown":
-                                Bot.Reply("Shutting down.", msg);
-                                running = false;
+                                if (BotAdmins[msg.From.Id])
+                                {
+                                    Bot.Reply("Shutting down.", msg);
+                                    running = false;
+                                }
+                                else Bot.Reply("You are bot admin but not dev - this means you don't have permission to this command.", msg);
                                 break;
 
                             case "/sql":
-                                try
+                                if (BotAdmins[msg.From.Id])
                                 {
-                                    var conn = new SQLiteConnection(connectionstring);
-
-                                    string raw = "";
-
-                                    if (string.IsNullOrEmpty(args[1]))
+                                    try
                                     {
-                                        Bot.Reply("You need to enter a query...", msg);
-                                        return;
-                                    }
+                                        var conn = new SQLiteConnection(connectionstring);
 
-                                    string reply = "";
+                                        string raw = "";
 
-                                    var queries = args[1].Split(';');
-                                    foreach (var sql in queries)
-                                    {
-                                        conn.Open();
-
-                                        using (var comm = conn.CreateCommand())
+                                        if (string.IsNullOrEmpty(args[1]))
                                         {
-                                            comm.CommandText = sql;
-                                            var reader = comm.ExecuteReader();
-                                            var result = "";
-                                            if (reader.HasRows)
-                                            {
-                                                for (int i = 0; i < reader.FieldCount; i++)
-                                                    raw += reader.GetName(i) + (i == reader.FieldCount - 1 ? "" : " - ");
-                                                result += raw + Environment.NewLine;
-                                                raw = "";
-                                                while (reader.Read())
-                                                {
-                                                    for (int i = 0; i < reader.FieldCount; i++)
-                                                        raw += (reader.IsDBNull(i) ? "<i>NULL</i>" : reader[i]) + (i == reader.FieldCount - 1 ? "" : " - ");
-                                                    result += raw + Environment.NewLine;
-                                                    raw = "";
-                                                }
-                                            }
-                                            if (reader.RecordsAffected > 0) result += $"\n<i>{reader.RecordsAffected} record(s) affected.</i>";
-                                            else if (string.IsNullOrEmpty(result)) result = sql.ToLower().StartsWith("select") || sql.ToLower().StartsWith("update") || sql.ToLower().StartsWith("pragma") || sql.ToLower().StartsWith("delete") ? "<i>Nothing found.</i>" : "<i>Done.</i>";
-                                            reply += "\n\n" + result;
-                                            conn.Close();
+                                            Bot.Reply("You need to enter a query...", msg);
+                                            return;
                                         }
 
-                                        if (new[] { "insert into botadmins", "delete from botadmins", "update botadmins" }.Any(x => sql.ToLower().StartsWith(x))) BotAdmins = SQL.GetBotAdmins();
-                                        if (new[] { "insert into bananas", "delete from bananas", "update bananas" }.Any(x => sql.ToLower().StartsWith(x))) BananaUsers = SQL.GetBananas();
-                                        if (new[] { "insert into config", "delete from config", "update config" }.Any(x => sql.ToLower().StartsWith(x))) SQL.ReadConfig();
-                                        if (new[] { "insert into unpreferredgroups", "delete from unpreferredgroups", "update unpreferredgroups" }.Any(x => sql.ToLower().StartsWith(x))) UnpreferredGroups = SQL.GetUnpreferred();
-                                    }
-                                    Bot.Reply(reply, msg);
-                                }
-                                catch (SQLiteException sqle)
-                                {
-                                    Exception exc = sqle;
-                                    while (exc.InnerException != null) exc = exc.InnerException;
+                                        string reply = "";
 
-                                    Bot.Reply("<b>SQLite Error!</b>\n\n" + exc.Message, msg);
-                                }
-                                catch (Exception exc)
-                                {
-                                    string error = exc.Message;
-                                    while (exc.InnerException != null)
+                                        var queries = args[1].Split(';');
+                                        foreach (var sql in queries)
+                                        {
+                                            conn.Open();
+
+                                            using (var comm = conn.CreateCommand())
+                                            {
+                                                comm.CommandText = sql;
+                                                var reader = comm.ExecuteReader();
+                                                var result = "";
+                                                if (reader.HasRows)
+                                                {
+                                                    for (int i = 0; i < reader.FieldCount; i++)
+                                                        raw += reader.GetName(i) + (i == reader.FieldCount - 1 ? "" : " - ");
+                                                    result += raw + Environment.NewLine;
+                                                    raw = "";
+                                                    while (reader.Read())
+                                                    {
+                                                        for (int i = 0; i < reader.FieldCount; i++)
+                                                            raw += (reader.IsDBNull(i) ? "<i>NULL</i>" : reader[i]) + (i == reader.FieldCount - 1 ? "" : " - ");
+                                                        result += raw + Environment.NewLine;
+                                                        raw = "";
+                                                    }
+                                                }
+                                                if (reader.RecordsAffected > 0) result += $"\n<i>{reader.RecordsAffected} record(s) affected.</i>";
+                                                else if (string.IsNullOrEmpty(result)) result = sql.ToLower().StartsWith("select") || sql.ToLower().StartsWith("update") || sql.ToLower().StartsWith("pragma") || sql.ToLower().StartsWith("delete") ? "<i>Nothing found.</i>" : "<i>Done.</i>";
+                                                reply += "\n\n" + result;
+                                                conn.Close();
+                                            }
+
+                                            if (new[] { "insert into botadmins", "delete from botadmins", "update botadmins" }.Any(x => sql.ToLower().StartsWith(x))) BotAdmins = SQL.GetBotAdmins();
+                                            if (new[] { "insert into bananas", "delete from bananas", "update bananas" }.Any(x => sql.ToLower().StartsWith(x))) BananaUsers = SQL.GetBananas();
+                                            if (new[] { "insert into config", "delete from config", "update config" }.Any(x => sql.ToLower().StartsWith(x))) SQL.ReadConfig();
+                                            if (new[] { "insert into unpreferredgroups", "delete from unpreferredgroups", "update unpreferredgroups" }.Any(x => sql.ToLower().StartsWith(x))) UnpreferredGroups = SQL.GetUnpreferred();
+                                        }
+                                        Bot.Reply(reply, msg);
+                                    }
+                                    catch (SQLiteException sqle)
                                     {
-                                        exc = exc.InnerException;
-                                        error += "\n\n" + exc.Message;
-                                    }
-                                    error += exc.StackTrace;
+                                        Exception exc = sqle;
+                                        while (exc.InnerException != null) exc = exc.InnerException;
 
-                                    Bot.Reply(error, msg);
+                                        Bot.Reply("<b>SQLite Error!</b>\n\n" + exc.Message, msg);
+                                    }
+                                    catch (Exception exc)
+                                    {
+                                        string error = exc.Message;
+                                        while (exc.InnerException != null)
+                                        {
+                                            exc = exc.InnerException;
+                                            error += "\n\n" + exc.Message;
+                                        }
+                                        error += exc.StackTrace;
+
+                                        Bot.Reply(error, msg);
+                                    }
                                 }
+                                else Bot.Reply("You are bot admin but not dev - this means you don't have permission to this command.", msg);
                                 break;
 
                             case "/unprefer":
@@ -351,7 +361,7 @@ namespace GreyWolfSupportBot
                 }
                 error += "\n\n" + ex.StackTrace;
                 Console.Write(error);
-                Bot.Send(error, BotAdmins[0]);
+                Bot.Send(error, BotAdmins.First().Key);
                 return;
             }
         }
@@ -360,6 +370,8 @@ namespace GreyWolfSupportBot
         {
             try
             {
+                if (!running) return;
+
                 InlineQuery query = e.InlineQuery;
 
                 if (SupportAdmins.Contains(query.From.Id))
@@ -385,63 +397,81 @@ namespace GreyWolfSupportBot
                 }
                 error += "\n\n" + ex.StackTrace;
                 Console.Write(error);
-                Bot.Send(error, BotAdmins[0]);
+                Bot.Send(error, BotAdmins.First().Key);
                 return;
             }
         }
 
         public static void Bot_OnCallbackQuery(object sender, CallbackQueryEventArgs e)
         {
-            var query = e.CallbackQuery;
-            var args = e.CallbackQuery.Data.Split('|');
-            long id = long.Parse(args[1]);
-
-            switch (args[0])
+            try
             {
-                case "EditReason":
-                    if (!BotAdmins.Contains(query.From.Id))
-                    {
-                        Bot.Api.AnswerCallbackQueryAsync(query.Id, "You are not a bot admin!", true).Wait();
-                        return;
-                    }
+                if (!running) return;
 
-                    var reason = args[2];
+                var query = e.CallbackQuery;
+                var args = e.CallbackQuery.Data.Split('|');
+                long id = long.Parse(args[1]);
 
-                    if (UnpreferredGroups.ContainsKey(id))
-                    {
-                        UnpreferredGroups[id] = reason;
-                        SQL.RunNoResultQuery($"update unpreferredgroups set reason = '{reason.Replace("'", "''")}' where id = {id}");
-                    }
-                    else
-                    {
-                        UnpreferredGroups.Add(id, reason);
-                        SQL.RunNoResultQuery($"insert into unpreferredgroups values ({id}, '{reason.Replace("'", "''")}')");
-                    }
+                switch (args[0])
+                {
+                    case "EditReason":
+                        if (!BotAdmins.ContainsKey(query.From.Id))
+                        {
+                            Bot.Api.AnswerCallbackQueryAsync(query.Id, "You are not a bot admin!", true).Wait();
+                            return;
+                        }
 
-                    if (UnpreferredGroupsHandling.ContainsKey(id))
-                    {
-                        var text = UnpreferredGroupsHandling[id].Text;
-                        Bot.Edit(text + "\n\n" + query.From.FirstName + ": Yes!\n\nReason edited!", UnpreferredGroupsHandling[id]);
-                        UnpreferredGroupsHandling.Remove(id);
-                    }
-                    Bot.Api.AnswerCallbackQueryAsync(query.Id, "Reason edited.");
-                    break;
+                        var reason = args[2];
 
-                case "EditReasonNo":
-                    if (!BotAdmins.Contains(query.From.Id))
-                    {
-                        Bot.Api.AnswerCallbackQueryAsync(query.Id, "You are not a bot admin!", true).Wait();
-                        return;
-                    }
+                        if (UnpreferredGroups.ContainsKey(id))
+                        {
+                            UnpreferredGroups[id] = reason;
+                            SQL.RunNoResultQuery($"update unpreferredgroups set reason = '{reason.Replace("'", "''")}' where id = {id}");
+                        }
+                        else
+                        {
+                            UnpreferredGroups.Add(id, reason);
+                            SQL.RunNoResultQuery($"insert into unpreferredgroups values ({id}, '{reason.Replace("'", "''")}')");
+                        }
 
-                    if (UnpreferredGroupsHandling.ContainsKey(id))
-                    {
-                        var text = UnpreferredGroupsHandling[id].Text;
-                        Bot.Edit(text + "\n\n" + query.From.FirstName + ": No!\n\nReason wasn't edited!", UnpreferredGroupsHandling[id]);
-                        UnpreferredGroupsHandling.Remove(id);
-                    }
-                    Bot.Api.AnswerCallbackQueryAsync("Reason not edited.");
-                    break;
+                        if (UnpreferredGroupsHandling.ContainsKey(id))
+                        {
+                            var text = UnpreferredGroupsHandling[id].Text;
+                            Bot.Edit(text + "\n\n" + query.From.FirstName + ": Yes!\n\nReason edited!", UnpreferredGroupsHandling[id]);
+                            UnpreferredGroupsHandling.Remove(id);
+                        }
+                        Bot.Api.AnswerCallbackQueryAsync(query.Id, "Reason edited.");
+                        break;
+
+                    case "EditReasonNo":
+                        if (!BotAdmins.ContainsKey(query.From.Id))
+                        {
+                            Bot.Api.AnswerCallbackQueryAsync(query.Id, "You are not a bot admin!", true).Wait();
+                            return;
+                        }
+
+                        if (UnpreferredGroupsHandling.ContainsKey(id))
+                        {
+                            var text = UnpreferredGroupsHandling[id].Text;
+                            Bot.Edit(text + "\n\n" + query.From.FirstName + ": No!\n\nReason wasn't edited!", UnpreferredGroupsHandling[id]);
+                            UnpreferredGroupsHandling.Remove(id);
+                        }
+                        Bot.Api.AnswerCallbackQueryAsync("Reason not edited.");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                    error += "\n\n" + ex.Message;
+                }
+                error += "\n\n" + ex.StackTrace;
+                Console.Write(error);
+                Bot.Send(error, BotAdmins.First().Key);
+                return;
             }
         }
 
@@ -608,11 +638,11 @@ namespace GreyWolfSupportBot
                 while (!rightFormat);
 
                 SQLiteConnection.CreateFile($"{Directory}\\{Database}");
-                RunNoResultQuery("create table botadmins (id int primary key not null unique)");
+                RunNoResultQuery("create table botadmins (id int primary key not null unique, isdev boolean not null default 0)");
                 RunNoResultQuery("create table bananas (id int primary key not null unique)");
                 RunNoResultQuery("create table config (token varchar(255), defaultpin int, defaultwelc varchar(255), issuepin varchar(255), issuewelc varchar(255), supportid varchar(255), adminchat varchar(255))");
                 RunNoResultQuery("create table unpreferredgroups (id varchar(255) unique primary key, reason varchar(255))");
-                RunNoResultQuery($"insert into botadmins values ({owner})");
+                RunNoResultQuery($"insert into botadmins values ({owner}, 1)");
                 RunNoResultQuery($"insert into config values ('{token}', 0, 'dummy', 'dummy', 'dummy', '{support}', '{adminchat}')");
 
                 Console.Clear();
@@ -627,18 +657,18 @@ namespace GreyWolfSupportBot
                 conn.Close();
             }
 
-            public static List<int> GetBotAdmins()
+            public static Dictionary<int, bool> GetBotAdmins()
             {
-                var query = "select id from botadmins";
+                var query = "select id, isdev from botadmins";
                 var conn = new SQLiteConnection(connectionstring);
                 conn.Open();
 
                 var comm = new SQLiteCommand(query, conn);
                 var reader = comm.ExecuteReader();
-                var admins = new List<int>();
+                var admins = new Dictionary<int, bool>();
                 while (reader.Read())
                 {
-                    admins.Add((int)reader[0]);
+                    admins.Add((int)reader[0], (bool)reader[1]);
                 }
                 return admins;
             }
