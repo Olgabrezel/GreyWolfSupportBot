@@ -368,7 +368,7 @@ namespace GreyWolfSupportBot
 
                 do
                 {
-                    Console.Write("\n\nEnter the bot token, as given by @Botfather");
+                    Console.Write("\n\nEnter the bot token, as given by @Botfather:\n");
                     token = Console.ReadLine();
                     rightFormat = token.Split(':').Count() == 2 && int.TryParse(token.Split(':')[0], out int dummy);
                 }
@@ -378,7 +378,7 @@ namespace GreyWolfSupportBot
 
                 do
                 {
-                    Console.Write("\n\nEnter your user ID");
+                    Console.Write("\n\nEnter your user ID:\n");
                     string dummy = Console.ReadLine();
                     rightFormat = int.TryParse(dummy, out owner) && owner > 0;
                 }
@@ -388,7 +388,7 @@ namespace GreyWolfSupportBot
 
                 do
                 {
-                    Console.Write("\n\nEnter the chat ID of the chat your bot will be working in");
+                    Console.Write("\n\nEnter the chat ID of the chat your bot will be working in:\n");
                     support = Console.ReadLine();
                     rightFormat = long.TryParse(support, out long dummy) && dummy < 0;
                 }
