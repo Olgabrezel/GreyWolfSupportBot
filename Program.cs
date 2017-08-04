@@ -359,9 +359,13 @@ namespace GreyWolfSupportBot
         {
             public static void FirstTime()
             {
-                string token = ""; // INSERT TOKEN HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE TOKEN AGAIN.
-                int owner = 0; // INSERT OWNER ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
-                string support = ""; // INSERT SUPPORT ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
+                Console.WriteLine("First use configuration");
+                Console.WriteLine("Enter the bot token, as given by @Botfather");
+                string token = Console.ReadLine(); // INSERT TOKEN HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE TOKEN AGAIN.
+                Console.WriteLine("Enter your user ID");
+                int owner = Convert.ToInt32(Console.ReadLine()); // INSERT OWNER ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
+                Console.WriteLine("Enter the chat ID of the chat your bot will be working in");
+                string support = Console.ReadLine(); // INSERT SUPPORT ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
 
                 if (string.IsNullOrEmpty(token) | owner == 0 | string.IsNullOrEmpty(support)) throw new NotImplementedException("You need to enter a token, owner ID and support ID before first use (see lines above)!");
 
