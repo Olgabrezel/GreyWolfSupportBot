@@ -325,6 +325,18 @@ namespace GreyWolfSupportBot
                                 else Bot.Reply("Wrong syntax!\n\n/prefer [groupid]", msg);
                                 break;
 
+                            case "/getreason":
+                                if (long.TryParse(args[1], out id))
+                                {
+                                    if (UnpreferredGroups.ContainsKey(id))
+                                    {
+                                        Bot.Reply($"Group {id} is unpreferred for: {UnpreferredGroups[id]}", msg);
+                                    }
+                                    else Bot.Reply($"I don't have a reason for group {id} stored!", msg);
+                                }
+                                else Bot.Reply("Wrong syntax!\n\n/getreason [groupid]", msg);
+                                break;
+
                         }
                     }
                 }
