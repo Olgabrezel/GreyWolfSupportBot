@@ -9,6 +9,7 @@ using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.InputMessageContents;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -22,6 +23,8 @@ namespace GreyWolfSupportBot
         public static List<int> BananaUsers;
         public static List<int> SupportAdmins;
         public static List<int> BotAdmins;
+        public static Dictionary<long, string> UnpreferredGroups;
+        public static Dictionary<long, Message> UnpreferredGroupsHandling = new Dictionary<long, Message>();
         public static string Token;
 
         public static int DefaultPin;
@@ -35,33 +38,58 @@ namespace GreyWolfSupportBot
         public static readonly string connectionstring = $"Data Source={Directory}\\{Database};Version=3;";
 
         public static bool running = true;
-        public static readonly DateTime starttime = DateTime.UtcNow;
+        public static readonly DateTime starttime = DateTime.Now;
 
 
         static void Main(string[] args)
         {
-            if (!System.IO.Directory.Exists(Directory)) System.IO.Directory.CreateDirectory(Directory);
-            if (!System.IO.File.Exists($"{Directory}\\{Database}")) SQL.FirstTime();
-
-            Token = SQL.GetToken();
-            Bot.Api = new TelegramBotClient(Token);
-            Bot.Me = Bot.Api.GetMeAsync().Result;
-
-            SQL.ReadConfig();
-            BananaUsers = SQL.GetBananas();
-            BotAdmins = SQL.GetBotAdmins();
-            Support = Bot.Api.GetChatAsync(SupportId).Result;
-            SupportAdmins = GetSupportAdmins();
-
-            Bot.Api.OnMessage += Bot_OnMessage;
-            Bot.Api.OnInlineQuery += Bot_OnInlineQuery;
-            Bot.Api.StartReceiving();
-            Bot.Send("Started Up!", Support.Id);
-            Console.Write("Program running!" + Environment.NewLine + Environment.NewLine);
-
-            while (running)
+            try
             {
-                System.Threading.Thread.Sleep(1000);
+                if (!System.IO.Directory.Exists(Directory)) System.IO.Directory.CreateDirectory(Directory);
+                if (!System.IO.File.Exists($"{Directory}\\{Database}")) SQL.FirstTime();
+
+                Token = SQL.GetToken();
+                Bot.Api = new TelegramBotClient(Token);
+                Bot.Me = Bot.Api.GetMeAsync().Result;
+
+                SQL.ReadConfig();
+                BananaUsers = SQL.GetBananas();
+                UnpreferredGroups = SQL.GetUnpreferred();
+                BotAdmins = SQL.GetBotAdmins();
+                Support = Bot.Api.GetChatAsync(SupportId).Result;
+                SupportAdmins = GetSupportAdmins();
+
+                Bot.Api.OnMessage += Bot_OnMessage;
+                Bot.Api.OnInlineQuery += Bot_OnInlineQuery;
+                Bot.Api.OnCallbackQuery += Bot_OnCallbackQuery;
+                Bot.Api.StartReceiving();
+                Bot.Send("Started Up!", Support.Id);
+                Console.Write("Program running!" + Environment.NewLine + Environment.NewLine);
+
+                while (running)
+                {
+                    System.Threading.Thread.Sleep(1000);
+                }
+
+                List<long> MenuGroupIds = UnpreferredGroupsHandling.Keys.ToList();
+                foreach (var id in MenuGroupIds)
+                {
+                    Bot.Edit("Menu closed (the bot was stopped while the menu was open).", UnpreferredGroupsHandling[id]);
+                    UnpreferredGroupsHandling[id] = null;
+                    UnpreferredGroupsHandling.Remove(id);
+                }
+                return;
+            }
+            catch (Exception ex)
+            {
+                var error = ex.Message;
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                    error += "\n\n" + ex.Message;
+                }
+                error += "\n\n" + ex.StackTrace;
+                Bot.Send(error, BotAdmins[0]);
             }
         }
 
@@ -71,8 +99,12 @@ namespace GreyWolfSupportBot
             {
                 Message msg = e.Message;
 
-                if (!string.IsNullOrEmpty(msg.Text) && msg.Date.AddSeconds(-5) >= starttime)
+                if (!string.IsNullOrEmpty(msg.Text) && msg.Date >= starttime.AddSeconds(5))
                 {
+                    string[] args = msg.Text.Contains(' ')
+                                        ? new[] { msg.Text.Split(' ')[0], msg.Text.Remove(0, msg.Text.IndexOf(' ') + 1) }
+                                        : new[] { msg.Text, null };
+
                     if (msg.Chat.Id == Support.Id)
                     {
                         if (msg.Text.ToLower().Contains("banana") && !BananaUsers.Contains(msg.From.Id))
@@ -102,7 +134,7 @@ namespace GreyWolfSupportBot
                             }
                             else
                             {
-                                switch (msg.Text.ToLower().Replace('@' + Bot.Me.Username.ToLower(), ""))
+                                switch (args[0].ToLower().Replace('@' + Bot.Me.Username.ToLower(), ""))
                                 {
                                     case "/reloadadmins":
                                         SupportAdmins = GetSupportAdmins();
@@ -122,9 +154,13 @@ namespace GreyWolfSupportBot
                                     case "/setissuewelcome":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            IssueWelcome = msg.ReplyToMessage.Text;
-                                            SQL.RunNoResultQuery($"update config set issuewelc = '{IssueWelcome.Replace("'", "''")}'");
-                                            Bot.Reply("Issue welcome set!", msg);
+                                            if (msg.ReplyToMessage.Text.ToLower().StartsWith("/welcome "))
+                                            {
+                                                IssueWelcome = msg.ReplyToMessage.Text;
+                                                SQL.RunNoResultQuery($"update config set issuewelc = '{IssueWelcome.Replace("'", "''")}'");
+                                                Bot.Reply("Issue welcome set!", msg);
+                                            }
+                                            else Bot.Reply("This is not a welcome defining message - it needs to start with <code>/welcome</code>", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue welcome!", msg);
                                         break;
@@ -132,9 +168,13 @@ namespace GreyWolfSupportBot
                                     case "/setwelcome":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            DefaultWelcome = msg.ReplyToMessage.Text;
-                                            SQL.RunNoResultQuery($"update config set defaultwelc = '{DefaultWelcome.Replace("'", "''")}'");
-                                            Bot.Reply("Welcome set!", msg);
+                                            if (msg.ReplyToMessage.Text.ToLower().StartsWith("/welcome "))
+                                            {
+                                                DefaultWelcome = msg.ReplyToMessage.Text;
+                                                SQL.RunNoResultQuery($"update config set defaultwelc = '{DefaultWelcome.Replace("'", "''")}'");
+                                                Bot.Reply("Welcome set!", msg);
+                                            }
+                                            else Bot.Reply("This is not a welcome defining message - it needs to start with <code>/welcome</code>", msg);
                                         }
                                         else Bot.Reply("You need to reply to the welcome!", msg);
                                         break;
@@ -155,7 +195,9 @@ namespace GreyWolfSupportBot
 
                     if (BotAdmins.Contains(msg.From.Id))
                     {
-                        switch (msg.Text.ToLower().Split(' ')[0])
+                        long id;
+
+                        switch (args[0].ToLower().Replace('@' + Bot.Me.Username, ""))
                         {
                             case "/shutdown":
                                 Bot.Reply("Shutting down.", msg);
@@ -168,10 +210,6 @@ namespace GreyWolfSupportBot
                                     var conn = new SQLiteConnection(connectionstring);
 
                                     string raw = "";
-
-                                    string[] args = msg.Text.Contains(' ')
-                                        ? new[] { msg.Text.Split(' ')[0], msg.Text.Remove(0, msg.Text.IndexOf(' ')) }
-                                        : new[] { msg.Text, null };
 
                                     if (string.IsNullOrEmpty(args[1]))
                                     {
@@ -210,6 +248,11 @@ namespace GreyWolfSupportBot
                                             reply += "\n\n" + result;
                                             conn.Close();
                                         }
+
+                                        if (new[] { "insert into botadmins", "delete from botadmins", "update botadmins" }.Any(x => sql.ToLower().StartsWith(x))) BotAdmins = SQL.GetBotAdmins();
+                                        if (new[] { "insert into bananas", "delete from bananas", "update bananas" }.Any(x => sql.ToLower().StartsWith(x))) BananaUsers = SQL.GetBananas();
+                                        if (new[] { "insert into config", "delete from config", "update config" }.Any(x => sql.ToLower().StartsWith(x))) SQL.ReadConfig();
+                                        if (new[] { "insert into unpreferredgroups", "delete from unpreferredgroups", "update unpreferredgroups" }.Any(x => sql.ToLower().StartsWith(x))) UnpreferredGroups = SQL.GetUnpreferred();
                                     }
                                     Bot.Reply(reply, msg);
                                 }
@@ -233,6 +276,55 @@ namespace GreyWolfSupportBot
                                     Bot.Reply(error, msg);
                                 }
                                 break;
+
+                            case "/unprefer":
+                                if (args[1].Split(' ').Count() >= 1 && long.TryParse(args[1].Split(' ')[0], out id))
+                                {
+                                    if (UnpreferredGroupsHandling.ContainsKey(id))
+                                    {
+                                        Bot.Edit("Menu closed (a new menu for that group was opened).", UnpreferredGroupsHandling[id]);
+                                        UnpreferredGroupsHandling.Remove(id);
+                                    }
+
+                                    var reason = args[1].Remove(0, args[1].IndexOf(' '));
+                                    if (UnpreferredGroups.ContainsKey(id))
+                                    {
+                                        var Markup = new InlineKeyboardMarkup
+                                        (
+                                            new InlineKeyboardButton[]
+                                            {
+                                                new InlineKeyboardCallbackButton("Yes", "EditReason|" + id.ToString() + "|" + reason),
+                                                new InlineKeyboardCallbackButton("No", "EditReasonNo|" + id.ToString()),
+                                            }
+                                        );
+
+                                        var HandleMessage = Bot.Reply($"{id} was already unpreferred for {UnpreferredGroups[id]}! Do you want to overwrite the reason?", msg, Markup);
+                                        UnpreferredGroupsHandling.Add(id, HandleMessage);
+                                    }
+                                    else
+                                    {
+                                        UnpreferredGroups.Add(id, reason);
+                                        SQL.RunNoResultQuery($"insert into unpreferredgroups values ({id}, '{reason.Replace("'", "''")}')");
+                                        Bot.Reply($"{id} was unpreferred for {reason}", msg);
+                                    }
+                                }
+                                else Bot.Reply("Wrong Syntax!\n\n/unprefer [groupid] [reason]", msg);
+                                break;
+
+                            case "/prefer":
+                                if (long.TryParse(args[1], out id))
+                                {
+                                    if (UnpreferredGroups.ContainsKey(id))
+                                    {
+                                        Bot.Reply($"Preferring {id} which was unpreferred for {UnpreferredGroups[id]}.", msg);
+                                        UnpreferredGroups.Remove(id);
+                                        SQL.RunNoResultQuery($"delete from unpreferredgroups where id = {id}");
+                                    }
+                                    else Bot.Reply($"{id} wasn't even unpreferred!", msg);
+                                }
+                                else Bot.Reply("Wrong syntax!\n\n/prefer [groupid]", msg);
+                                break;
+
                         }
                     }
                 }
@@ -260,7 +352,11 @@ namespace GreyWolfSupportBot
 
                 if (SupportAdmins.Contains(query.From.Id))
                 {
-                    Bot.Api.AnswerInlineQueryAsync(query.Id, InlineResults.Admin).Wait();
+                    if (new[] { IssuePin, IssueWelcome, DefaultWelcome }.All(x => x != "dummy") && DefaultPin != 0)
+                    {
+                        Bot.Api.AnswerInlineQueryAsync(query.Id, InlineResults.Admin).Wait();
+                    }
+                    else Bot.Api.AnswerInlineQueryAsync(query.Id, InlineResults.NotSet);
                 }
                 else
                 {
@@ -279,6 +375,61 @@ namespace GreyWolfSupportBot
                 Console.Write(error);
                 Bot.Send(error, BotAdmins[0]);
                 return;
+            }
+        }
+
+        public static void Bot_OnCallbackQuery(object sender, CallbackQueryEventArgs e)
+        {
+            var query = e.CallbackQuery;
+            var args = e.CallbackQuery.Data.Split('|');
+            long id = long.Parse(args[1]);
+
+            switch (args[0])
+            {
+                case "EditReason":
+                    if (!BotAdmins.Contains(query.From.Id))
+                    {
+                        Bot.Api.AnswerCallbackQueryAsync(query.Id, "You are not a bot admin!", true).Wait();
+                        return;
+                    }
+
+                    var reason = args[2];
+
+                    if (UnpreferredGroups.ContainsKey(id))
+                    {
+                        UnpreferredGroups[id] = reason;
+                        SQL.RunNoResultQuery($"update unpreferredgroups set reason = '{reason.Replace("'", "''")}' where id = {id}");
+                    }
+                    else
+                    {
+                        UnpreferredGroups.Add(id, reason);
+                        SQL.RunNoResultQuery($"insert into unpreferredgroups values ({id}, '{reason.Replace("'", "''")}')");
+                    }
+
+                    if (UnpreferredGroupsHandling.ContainsKey(id))
+                    {
+                        var text = UnpreferredGroupsHandling[id].Text;
+                        Bot.Edit(text + "\n\n" + query.From.FirstName + ": Yes!\n\nReason edited!", UnpreferredGroupsHandling[id]);
+                        UnpreferredGroupsHandling.Remove(id);
+                    }
+                    Bot.Api.AnswerCallbackQueryAsync(query.Id, "Reason edited.");
+                    break;
+
+                case "EditReasonNo":
+                    if (!BotAdmins.Contains(query.From.Id))
+                    {
+                        Bot.Api.AnswerCallbackQueryAsync(query.Id, "You are not a bot admin!", true).Wait();
+                        return;
+                    }
+
+                    if (UnpreferredGroupsHandling.ContainsKey(id))
+                    {
+                        var text = UnpreferredGroupsHandling[id].Text;
+                        Bot.Edit(text + "\n\n" + query.From.FirstName + ": No!\n\nReason wasn't edited!", UnpreferredGroupsHandling[id]);
+                        UnpreferredGroupsHandling.Remove(id);
+                    }
+                    Bot.Api.AnswerCallbackQueryAsync("Reason not edited.");
+                    break;
             }
         }
 
@@ -327,6 +478,26 @@ namespace GreyWolfSupportBot
                 t.Wait();
                 return t.Result;
             }
+
+            public static Message Edit(string newtext, Message message, IReplyMarkup replyMarkup = null, ParseMode parseMode = ParseMode.Html, bool disableWebPagePreview = true)
+            {
+                if (message.Text == newtext) return message;
+                return Edit(newtext, message.Chat.Id, message.MessageId, replyMarkup, parseMode, disableWebPagePreview);
+            }
+
+            public static Message Edit(string newtext, long chatid, int messageid, IReplyMarkup replyMarkup = null, ParseMode parseMode = ParseMode.Html, bool disableWebPagePreview = true)
+            {
+                try
+                {
+                    var t = Api.EditMessageTextAsync(chatid, messageid, newtext, parseMode, disableWebPagePreview, replyMarkup);
+                    t.Wait();
+                    return t.Result;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
         }
 
         static class InlineResults
@@ -353,6 +524,17 @@ namespace GreyWolfSupportBot
                     };
                 }
             }
+
+            public static InlineQueryResultArticle[] NotSet
+            {
+                get
+                {
+                    return new[]
+                    {
+                        new InlineQueryResultArticle() { Id = "NotSet", Title = "Unusable yet, click for info", InputMessageContent = new InputTextMessageContent() { MessageText = "At least one of default pin, default welcome, issue pin, issue welcome wasn't set yet. @Olgabrezel come fix it!" } },
+                    };
+                }
+            }
         }
 
         public static class SQL
@@ -360,6 +542,7 @@ namespace GreyWolfSupportBot
             public static void FirstTime()
             {
                 bool rightFormat = false;
+                string error = "";
                 string token;
                 int owner;
                 string support;
@@ -368,29 +551,34 @@ namespace GreyWolfSupportBot
 
                 do
                 {
-                    Console.Write("\n\nEnter the bot token, as given by @Botfather:\n");
+                    Console.Write($"\n\n{error}Enter the bot token, as given by @Botfather:\n");
                     token = Console.ReadLine();
                     rightFormat = token.Split(':').Count() == 2 && int.TryParse(token.Split(':')[0], out int dummy);
+                    error = "Invalid! ";
                 }
                 while (!rightFormat);
 
                 rightFormat = false;
+                error = "";
 
                 do
                 {
-                    Console.Write("\n\nEnter your user ID:\n");
+                    Console.Write($"\n\n{error}Enter your user ID:\n");
                     string dummy = Console.ReadLine();
                     rightFormat = int.TryParse(dummy, out owner) && owner > 0;
+                    error = "Invalid! ";
                 }
                 while (!rightFormat);
 
                 rightFormat = false;
+                error = "";
 
                 do
                 {
-                    Console.Write("\n\nEnter the chat ID of the chat your bot will be working in:\n");
+                    Console.Write($"\n\n{error}Enter the chat ID of the support chat:\n");
                     support = Console.ReadLine();
                     rightFormat = long.TryParse(support, out long dummy) && dummy < 0;
+                    error = "Invalid! ";
                 }
                 while (!rightFormat);
 
@@ -398,8 +586,9 @@ namespace GreyWolfSupportBot
                 RunNoResultQuery("create table botadmins (id int primary key not null unique)");
                 RunNoResultQuery("create table bananas (id int primary key not null unique)");
                 RunNoResultQuery("create table config (token varchar(255), defaultpin int, defaultwelc varchar(255), issuepin varchar(255), issuewelc varchar(255), supportid varchar(255))");
+                RunNoResultQuery("create table unpreferredgroups (id varchar(255) unique primary key, reason varchar(255))");
                 RunNoResultQuery($"insert into botadmins values ({owner})");
-                RunNoResultQuery($"insert into config values ('{token}', 10, 'dummy welcome 1', 'dummy pin', 'dummy welcome 2', '{support}')");
+                RunNoResultQuery($"insert into config values ('{token}', 0, 'dummy', 'dummy', 'dummy', '{support}')");
 
                 Console.Clear();
             }
@@ -442,6 +631,22 @@ namespace GreyWolfSupportBot
                     bananas.Add((int)reader[0]);
                 }
                 return bananas;
+            }
+
+            public static Dictionary<long, string> GetUnpreferred()
+            {
+                var query = "select id, reason from unpreferredgroups";
+                var conn = new SQLiteConnection(connectionstring);
+                conn.Open();
+
+                var comm = new SQLiteCommand(query, conn);
+                var reader = comm.ExecuteReader();
+                var unpreferred = new Dictionary<long, string>();
+                while (reader.Read())
+                {
+                    unpreferred.Add(long.Parse((string)reader[0]), (string)reader[1]);
+                }
+                return unpreferred;
             }
 
             public static string GetToken()
