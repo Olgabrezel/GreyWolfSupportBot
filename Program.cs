@@ -1,6 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
+using System.Configuration;
 using System.Collections.Generic;
+using System.Data.SQLite;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,26 +17,44 @@ namespace GreyWolfSupportBot
 {
     class Program
     {
-        public static readonly Chat Support = Bot.Api.GetChatAsync(/*-1001060486754*/-1001127004418).Result;
-        public static List<int> BananaUsers = GetBananaUsers();
-        public static List<int> SupportAdmins = GetSupportAdmins();
-        public static string IssuePinText;
+        public static long SupportId;
+        public static Chat Support;
+        public static List<int> BananaUsers;
+        public static List<int> SupportAdmins;
+        public static List<int> BotAdmins;
+        public static string Token;
+
+        public static int DefaultPin;
+        public static string DefaultWelcome;
+        public static string IssuePin;
         public static string IssueWelcome;
-        public static string StandardWelcome;
-        public static int PinmessageId;
 
-        public static bool learning = false;
-        public static List<int> temp;
 
-        public const int serverOwner = 295152997;
+        public const string Directory = "C:\\GreyWolfSupportBot";
+        public const string Database = "Database.sqlite";
+        public static readonly string connectionstring = $"Data Source={Directory}\\{Database};Version=3;";
+
         public static bool running = true;
+        public static readonly DateTime starttime = DateTime.UtcNow;
 
 
         static void Main(string[] args)
         {
+            if (!System.IO.Directory.Exists(Directory)) System.IO.Directory.CreateDirectory(Directory);
+            if (!System.IO.File.Exists($"{Directory}\\{Database}")) SQL.FirstTime();
+
+            Token = SQL.GetToken();
+            Bot.Api = new TelegramBotClient(Token);
+            Bot.Me = Bot.Api.GetMeAsync().Result;
+
+            SQL.ReadConfig();
+            BananaUsers = SQL.GetBananas();
+            BotAdmins = SQL.GetBotAdmins();
+            Support = Bot.Api.GetChatAsync(SupportId).Result;
+            SupportAdmins = GetSupportAdmins();
+
             Bot.Api.OnMessage += Bot_OnMessage;
             Bot.Api.OnInlineQuery += Bot_OnInlineQuery;
-            ReadMessages();
             Bot.Api.StartReceiving();
             Bot.Send("Started Up!", Support.Id);
             Console.Write("Program running!" + Environment.NewLine + Environment.NewLine);
@@ -52,28 +71,28 @@ namespace GreyWolfSupportBot
             {
                 Message msg = e.Message;
 
-                if (!string.IsNullOrEmpty(msg.Text))
+                if (!string.IsNullOrEmpty(msg.Text) && msg.Date.AddSeconds(-5) >= starttime)
                 {
                     if (msg.Chat.Id == Support.Id)
                     {
                         if (msg.Text.ToLower().Contains("banana") && !BananaUsers.Contains(msg.From.Id))
                         {
                             BananaUsers.Add(msg.From.Id);
-                            WriteBananaUsers();
+                            SQL.RunNoResultQuery($"insert into bananas values ({msg.From.Id})");
                             Bot.Reply($"#bananacount {BananaUsers.Count}! Thanks for reading the pinned message!", msg);
                         }
                         if (SupportAdmins.Contains(msg.From.Id))
                         {
                             if (msg.Text == IssueWelcome)
                             {
-                                var IssuePin = Bot.Reply(IssuePinText, Support.Id, PinmessageId);
-                                var IssueSuccess = Bot.Pin(Support.Id, IssuePin.MessageId);
+                                var IssueMsg = Bot.Reply(IssuePin, Support.Id, DefaultPin);
+                                var IssueSuccess = Bot.Pin(Support.Id, IssueMsg.MessageId);
                             }
-                            else if (msg.Text == StandardWelcome)
+                            else if (msg.Text == DefaultWelcome)
                             {
                                 try
                                 {
-                                    var NormalSuccess = Bot.Pin(Support.Id, PinmessageId);
+                                    var NormalSuccess = Bot.Pin(Support.Id, DefaultPin);
                                 }
                                 catch (AggregateException ex)
                                 {
@@ -83,7 +102,7 @@ namespace GreyWolfSupportBot
                             }
                             else
                             {
-                                switch (msg.Text.ToLower())
+                                switch (msg.Text.ToLower().Replace('@' + Bot.Me.Username.ToLower(), ""))
                                 {
                                     case "/reloadadmins":
                                         SupportAdmins = GetSupportAdmins();
@@ -93,8 +112,8 @@ namespace GreyWolfSupportBot
                                     case "/setpin":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            PinmessageId = msg.ReplyToMessage.MessageId;
-                                            WriteMessages();
+                                            DefaultPin = msg.ReplyToMessage.MessageId;
+                                            SQL.RunNoResultQuery($"update config set defaultpin = {DefaultPin}");
                                             Bot.Reply("Successfully set that message as pin message!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the pin message!", msg);
@@ -104,7 +123,7 @@ namespace GreyWolfSupportBot
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
                                             IssueWelcome = msg.ReplyToMessage.Text;
-                                            WriteMessages();
+                                            SQL.RunNoResultQuery($"update config set issuewelc = '{IssueWelcome}'");
                                             Bot.Reply("Issue welcome set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue welcome!", msg);
@@ -113,8 +132,8 @@ namespace GreyWolfSupportBot
                                     case "/setwelcome":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            StandardWelcome = msg.ReplyToMessage.Text;
-                                            WriteMessages();
+                                            DefaultWelcome = msg.ReplyToMessage.Text;
+                                            SQL.RunNoResultQuery($"update config set defaultwelc = '{DefaultWelcome}'");
                                             Bot.Reply("Welcome set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the welcome!", msg);
@@ -123,8 +142,8 @@ namespace GreyWolfSupportBot
                                     case "/setissuepin":
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
-                                            IssuePinText = msg.ReplyToMessage.Text;
-                                            WriteMessages();
+                                            IssuePin = msg.ReplyToMessage.Text;
+                                            SQL.RunNoResultQuery($"update config set issuepin = '{IssuePin}'");
                                             Bot.Reply("Issue pin message set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue pin message!", msg);
@@ -133,35 +152,80 @@ namespace GreyWolfSupportBot
                             }
                         }
                     }
-                    if (learning && msg.ForwardFrom != null && !temp.Contains(msg.ForwardFrom.Id)) temp.Add(msg.ForwardFrom.Id);
 
-                    if (SupportAdmins.Contains(msg.From.Id))
+                    if (BotAdmins.Contains(msg.From.Id))
                     {
-                        switch (msg.Text.ToLower())
-                        {
-                            case "/startlearning":
-                                learning = true;
-                                temp = new List<int>();
-                                Bot.Reply("Banana learning active.", msg);
-                                break;
-
-                            case "/finishlearning":
-                                learning = false;
-                                Bot.Reply(temp.Count + " bananas learnt.", msg);
-                                foreach (var t in temp.Where(x => !BananaUsers.Contains(x))) BananaUsers.Add(t);
-                                WriteBananaUsers();
-                                temp = null;
-                                break;
-                        }
-                    }
-
-                    if (msg.From.Id == serverOwner)
-                    {
-                        switch (msg.Text.ToLower())
+                        switch (msg.Text.ToLower().Split(' ')[0])
                         {
                             case "/shutdown":
                                 Bot.Reply("Shutting down.", msg);
                                 running = false;
+                                break;
+
+                            case "/sql":
+                                try
+                                {
+                                    var conn = new SQLiteConnection(connectionstring);
+
+                                    string raw = "";
+
+                                    string[] args = msg.Text.Contains(' ')
+                                        ? new[] { msg.Text.Split(' ')[0], msg.Text.Remove(0, msg.Text.IndexOf(' ')) }
+                                        : new[] { msg.Text, null };
+
+                                    string reply = "";
+
+                                    var queries = args[1].Split(';');
+                                    foreach (var sql in queries)
+                                    {
+                                        conn.Open();
+
+                                        using (var comm = conn.CreateCommand())
+                                        {
+                                            comm.CommandText = sql;
+                                            var reader = comm.ExecuteReader();
+                                            var result = "";
+                                            if (reader.HasRows)
+                                            {
+                                                for (int i = 0; i < reader.FieldCount; i++)
+                                                    raw += reader.GetName(i) + (i == reader.FieldCount - 1 ? "" : " - ");
+                                                result += raw + Environment.NewLine;
+                                                raw = "";
+                                                while (reader.Read())
+                                                {
+                                                    for (int i = 0; i < reader.FieldCount; i++)
+                                                        raw += (reader.IsDBNull(i) ? "<i>NULL</i>" : reader[i]) + (i == reader.FieldCount - 1 ? "" : " - ");
+                                                    result += raw + Environment.NewLine;
+                                                    raw = "";
+                                                }
+                                            }
+                                            if (reader.RecordsAffected > 0) result += $"\n<i>{reader.RecordsAffected} record(s) affected.</i>";
+                                            else if (string.IsNullOrEmpty(result)) result = sql.ToLower().StartsWith("select") || sql.ToLower().StartsWith("update") || sql.ToLower().StartsWith("pragma") || sql.ToLower().StartsWith("delete") ? "<i>Nothing found.</i>" : "<i>Done.</i>";
+                                            reply += "\n\n" + result;
+                                            conn.Close();
+                                        }
+                                    }
+                                    Bot.Reply(reply, msg);
+                                }
+                                catch (SQLiteException sqle)
+                                {
+                                    Exception exc = sqle;
+                                    while (exc.InnerException != null) exc = exc.InnerException;
+
+                                    Bot.Reply("<b>SQLite Error!</b>\n\n" + e.Message, msg);
+                                }
+                                catch (Exception exc)
+                                {
+                                    string error = exc.Message;
+                                    while (exc.InnerException != null)
+                                    {
+                                        exc = exc.InnerException;
+                                        error += "\n\n" + exc.Message;
+                                    }
+                                    error += exc.StackTrace;
+
+                                    Bot.Reply(error, msg);
+                                }
                                 break;
                         }
                     }
@@ -209,8 +273,8 @@ namespace GreyWolfSupportBot
 
         static class Bot
         {
-            public static ITelegramBotClient Api = new TelegramBotClient(Token);
-            public static User Me = Api.GetMeAsync().Result;
+            public static ITelegramBotClient Api;
+            public static User Me;
 
             public static Message Send(string text, long chatid, IReplyMarkup replyMarkup = null, ParseMode parseMode = ParseMode.Html, bool disableWebPagePreview = true)
             {
@@ -251,57 +315,123 @@ namespace GreyWolfSupportBot
                 t.Wait();
                 return t.Result;
             }
-
-            private static string Token
-            {
-                get
-                {
-                    return System.IO.File.ReadAllText("token.txt");
-                }
-            }
         }
 
         static class InlineResults
         {
-            public static readonly InlineQueryResultArticle[] NotAdmin = new[] { new InlineQueryResultArticle() { Id = "NotAdmin", Title = "You are not support admin!", InputMessageContent = new InputTextMessageContent() { MessageText = "Ooops! I just tried to use the support bot inline, but I am not a support admin!" } } };
-            public static readonly InlineQueryResultArticle[] Admin = new[]
+            public static InlineQueryResultArticle[] NotAdmin
             {
-                new InlineQueryResultArticle() { Id = "IssueWelcome", Title = "Issue Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = IssueWelcome } },
-                new InlineQueryResultArticle() { Id = "NormalWelcome", Title = "Standard Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = StandardWelcome } },
-            };
+                get
+                {
+                    return new[]
+                    {
+                        new InlineQueryResultArticle() { Id = "NotAdmin", Title = "You are not support admin!", InputMessageContent = new InputTextMessageContent() { MessageText = "Ooops! I just tried to use the support bot inline, but I am not a support admin!" } }
+                    };
+                }
+            }
+
+            public static InlineQueryResultArticle[] Admin
+            {
+                get
+                {
+                    return new[]
+                    {
+                        new InlineQueryResultArticle() { Id = "IssueWelcome", Title = "Issue Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = IssueWelcome } },
+                        new InlineQueryResultArticle() { Id = "NormalWelcome", Title = "Standard Welcome & Pin", InputMessageContent = new InputTextMessageContent() { MessageText = DefaultWelcome } },
+                    };
+                }
+            }
         }
 
-        public static List<int> GetBananaUsers()
+        public static class SQL
         {
-            var bu = JsonConvert.DeserializeObject<List<int>>(System.IO.File.ReadAllText("bananas.txt"));
-            if (bu is null) return new List<int>();
-            return bu;
-        }
+            public static void FirstTime()
+            {
+                string token = ""; // INSERT TOKEN HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE TOKEN AGAIN.
+                int owner = 0; // INSERT OWNER ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
+                string support = ""; // INSERT SUPPORT ID HERE BEFORE FIRST USE. RUN PROGRAM, STOP, REMOVE ID AGAIN.
 
-        public static void WriteBananaUsers()
-        {
-            System.IO.File.WriteAllText("bananas.txt", JsonConvert.SerializeObject(BananaUsers));
+                if (string.IsNullOrEmpty(token) | owner == 0 | string.IsNullOrEmpty(support)) throw new NotImplementedException("You need to enter a token, owner ID and support ID before first use (see lines above)!");
+
+                SQLiteConnection.CreateFile($"{Directory}\\{Database}");
+                RunNoResultQuery("create table botadmins (id int primary key not null unique)");
+                RunNoResultQuery("create table bananas (id int primary key not null unique)");
+                RunNoResultQuery("create table config (token varchar(255), defaultpin int, defaultwelc varchar(255), issuepin varchar(255), issuewelc varchar(255), supportid varchar(255))");
+                RunNoResultQuery($"insert into botadmins values ({owner})");
+                RunNoResultQuery($"insert into config values ('{token}', 10, 'dummy welcome 1', 'dummy pin', 'dummy welcome 2', '{support}')");
+            }
+
+            public static void RunNoResultQuery(string query)
+            {
+                var conn = new SQLiteConnection(connectionstring);
+                var comm = new SQLiteCommand(query, conn);
+                conn.Open();
+                comm.ExecuteNonQuery();
+            }
+
+            public static List<int> GetBotAdmins()
+            {
+                var query = "select id from botadmins";
+                var conn = new SQLiteConnection(connectionstring);
+                conn.Open();
+
+                var comm = new SQLiteCommand(query, conn);
+                var reader = comm.ExecuteReader();
+                var admins = new List<int>();
+                while (reader.Read())
+                {
+                    admins.Add((int)reader[0]);
+                }
+                return admins;
+            }
+
+            public static List<int> GetBananas()
+            {
+                var query = "select id from bananas";
+                var conn = new SQLiteConnection(connectionstring);
+                conn.Open();
+
+                var comm = new SQLiteCommand(query, conn);
+                var reader = comm.ExecuteReader();
+                var bananas = new List<int>();
+                while (reader.Read())
+                {
+                    bananas.Add((int)reader[0]);
+                }
+                return bananas;
+            }
+
+            public static string GetToken()
+            {
+                var query = "select token from config";
+                var conn = new SQLiteConnection(connectionstring);
+                var comm = new SQLiteCommand(query, conn);
+                conn.Open();
+                var reader = comm.ExecuteReader();
+                reader.Read();
+                return (string)reader[0];
+            }
+
+            public static void ReadConfig()
+            {
+                var query = "select * from config";
+                var conn = new SQLiteConnection(connectionstring);
+                conn.Open();
+
+                var comm = new SQLiteCommand(query, conn);
+                var reader = comm.ExecuteReader();
+                reader.Read();
+                DefaultPin = (int)reader[1];
+                DefaultWelcome = (string)reader[2];
+                IssuePin = (string)reader[3];
+                IssueWelcome = (string)reader[4];
+                SupportId = long.Parse((string)reader[5]);
+            }
         }
 
         public static List<int> GetSupportAdmins()
         {
             return Bot.Api.GetChatAdministratorsAsync(Support.Id).Result.Select(x => x.User.Id).ToList();
-        }
-
-        public static void ReadMessages()
-        {
-            PinmessageId = int.Parse(System.IO.File.ReadAllText("standardpin.txt"));
-            StandardWelcome = System.IO.File.ReadAllText("standardwelc.txt");
-            IssuePinText = System.IO.File.ReadAllText("issuepin.txt");
-            IssueWelcome = System.IO.File.ReadAllText("issuewelc.txt");
-        }
-
-        public static void WriteMessages()
-        {
-            System.IO.File.WriteAllText("standardpin.txt", $"{PinmessageId}");
-            System.IO.File.WriteAllText("standardwelc.txt", StandardWelcome);
-            System.IO.File.WriteAllText("issuepin.txt", IssuePinText);
-            System.IO.File.WriteAllText("issuewelc.txt", IssueWelcome);
         }
     }
 }

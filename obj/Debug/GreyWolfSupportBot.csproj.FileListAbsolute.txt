@@ -8,3 +8,10 @@ c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWol
 c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\obj\Debug\GreyWolfSupportBot.csprojResolveAssemblyReference.cache
 c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\obj\Debug\GreyWolfSupportBot.exe
 c:\users\ludwig\documents\visual studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\obj\Debug\GreyWolfSupportBot.pdb
+D:\Pierre\Work\IT\Bots\GreyWolfSupportBotGit\bin\Debug\GreyWolfSupportBot.exe.config
+D:\Pierre\Work\IT\Bots\GreyWolfSupportBotGit\bin\Debug\GreyWolfSupportBot.exe
+D:\Pierre\Work\IT\Bots\GreyWolfSupportBotGit\bin\Debug\GreyWolfSupportBot.pdb
+D:\Pierre\Work\IT\Bots\GreyWolfSupportBotGit\obj\Debug\GreyWolfSupportBot.exe
+D:\Pierre\Work\IT\Bots\GreyWolfSupportBotGit\obj\Debug\GreyWolfSupportBot.pdb
+C:\Users\Ludwig\Documents\Visual Studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\System.Data.SQLite.dll
+C:\Users\Ludwig\Documents\Visual Studio 2017\Projects\GreyWolfSupportBot\GreyWolfSupportBot\bin\Debug\System.Data.SQLite.xml
