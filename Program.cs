@@ -378,7 +378,7 @@ namespace GreyWolfSupportBot
                 var comm = new SQLiteCommand(query, conn);
                 var reader = comm.ExecuteReader();
                 var admins = new List<int>();
-                while(reader.Read())
+                while (reader.Read())
                 {
                     admins.Add((int)reader[0]);
                 }
