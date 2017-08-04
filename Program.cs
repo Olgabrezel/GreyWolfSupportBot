@@ -123,7 +123,7 @@ namespace GreyWolfSupportBot
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
                                             IssueWelcome = msg.ReplyToMessage.Text;
-                                            SQL.RunNoResultQuery($"update config set issuewelc = '{IssueWelcome}'");
+                                            SQL.RunNoResultQuery($"update config set issuewelc = '{IssueWelcome.Replace("'", "''")}'");
                                             Bot.Reply("Issue welcome set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue welcome!", msg);
@@ -133,7 +133,7 @@ namespace GreyWolfSupportBot
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
                                             DefaultWelcome = msg.ReplyToMessage.Text;
-                                            SQL.RunNoResultQuery($"update config set defaultwelc = '{DefaultWelcome}'");
+                                            SQL.RunNoResultQuery($"update config set defaultwelc = '{DefaultWelcome.Replace("'", "''")}'");
                                             Bot.Reply("Welcome set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the welcome!", msg);
@@ -143,7 +143,7 @@ namespace GreyWolfSupportBot
                                         if (msg.ReplyToMessage != null && !string.IsNullOrEmpty(msg.ReplyToMessage.Text))
                                         {
                                             IssuePin = msg.ReplyToMessage.Text;
-                                            SQL.RunNoResultQuery($"update config set issuepin = '{IssuePin}'");
+                                            SQL.RunNoResultQuery($"update config set issuepin = '{IssuePin.Replace("'", "''")}'");
                                             Bot.Reply("Issue pin message set!", msg);
                                         }
                                         else Bot.Reply("You need to reply to the issue pin message!", msg);
@@ -172,6 +172,12 @@ namespace GreyWolfSupportBot
                                     string[] args = msg.Text.Contains(' ')
                                         ? new[] { msg.Text.Split(' ')[0], msg.Text.Remove(0, msg.Text.IndexOf(' ')) }
                                         : new[] { msg.Text, null };
+
+                                    if (string.IsNullOrEmpty(args[1]))
+                                    {
+                                        Bot.Reply("You need to enter a query...", msg);
+                                        return;
+                                    }
 
                                     string reply = "";
 
@@ -212,7 +218,7 @@ namespace GreyWolfSupportBot
                                     Exception exc = sqle;
                                     while (exc.InnerException != null) exc = exc.InnerException;
 
-                                    Bot.Reply("<b>SQLite Error!</b>\n\n" + e.Message, msg);
+                                    Bot.Reply("<b>SQLite Error!</b>\n\n" + exc.Message, msg);
                                 }
                                 catch (Exception exc)
                                 {
@@ -233,12 +239,15 @@ namespace GreyWolfSupportBot
             }
             catch (Exception ex)
             {
+                var error = ex.Message;
                 while (ex.InnerException != null)
                 {
-                    Console.Write(ex.Message + Environment.NewLine);
                     ex = ex.InnerException;
+                    error += "\n\n" + ex.Message;
                 }
-                Console.Write(ex.Message + Environment.NewLine + ex.StackTrace + Environment.NewLine);
+                error += "\n\n" + ex.StackTrace;
+                Console.Write(error);
+                Bot.Send(error, BotAdmins[0]);
                 return;
             }
         }
@@ -260,12 +269,15 @@ namespace GreyWolfSupportBot
             }
             catch (Exception ex)
             {
+                var error = ex.Message;
                 while (ex.InnerException != null)
                 {
-                    Console.Write(ex.Message + Environment.NewLine);
                     ex = ex.InnerException;
+                    error += "\n\n" + ex.Message;
                 }
-                Console.Write(ex.Message + Environment.NewLine + ex.StackTrace + Environment.NewLine);
+                error += "\n\n" + ex.StackTrace;
+                Console.Write(error);
+                Bot.Send(error, BotAdmins[0]);
                 return;
             }
         }
