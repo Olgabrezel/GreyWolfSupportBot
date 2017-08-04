@@ -19,7 +19,7 @@ namespace GreyWolfSupportBot
     class Program
     {
         public static long SupportId;
-        public static Chat Support;
+        public static long AdminchatId;
         public static List<int> BananaUsers;
         public static List<int> SupportAdmins;
         public static List<int> BotAdmins;
@@ -56,14 +56,13 @@ namespace GreyWolfSupportBot
                 BananaUsers = SQL.GetBananas();
                 UnpreferredGroups = SQL.GetUnpreferred();
                 BotAdmins = SQL.GetBotAdmins();
-                Support = Bot.Api.GetChatAsync(SupportId).Result;
                 SupportAdmins = GetSupportAdmins();
 
                 Bot.Api.OnMessage += Bot_OnMessage;
                 Bot.Api.OnInlineQuery += Bot_OnInlineQuery;
                 Bot.Api.OnCallbackQuery += Bot_OnCallbackQuery;
                 Bot.Api.StartReceiving();
-                Bot.Send("Started Up!", Support.Id);
+                Bot.Send("Started Up!", AdminchatId);
                 Console.Write("Program running!" + Environment.NewLine + Environment.NewLine);
 
                 while (running)
@@ -105,7 +104,7 @@ namespace GreyWolfSupportBot
                                         ? new[] { msg.Text.Split(' ')[0], msg.Text.Remove(0, msg.Text.IndexOf(' ') + 1) }
                                         : new[] { msg.Text, null };
 
-                    if (msg.Chat.Id == Support.Id)
+                    if (msg.Chat.Id == SupportId)
                     {
                         if (msg.Text.ToLower().Contains("banana") && !BananaUsers.Contains(msg.From.Id))
                         {
@@ -117,14 +116,14 @@ namespace GreyWolfSupportBot
                         {
                             if (msg.Text == IssueWelcome)
                             {
-                                var IssueMsg = Bot.Reply(IssuePin, Support.Id, DefaultPin);
-                                var IssueSuccess = Bot.Pin(Support.Id, IssueMsg.MessageId);
+                                var IssueMsg = Bot.Reply(IssuePin, SupportId, DefaultPin);
+                                var IssueSuccess = Bot.Pin(SupportId, IssueMsg.MessageId);
                             }
                             else if (msg.Text == DefaultWelcome)
                             {
                                 try
                                 {
-                                    var NormalSuccess = Bot.Pin(Support.Id, DefaultPin);
+                                    var NormalSuccess = Bot.Pin(SupportId, DefaultPin);
                                 }
                                 catch (AggregateException ex)
                                 {
@@ -138,7 +137,8 @@ namespace GreyWolfSupportBot
                                 {
                                     case "/reloadadmins":
                                         SupportAdmins = GetSupportAdmins();
-                                        Bot.Reply("Reloaded admins:\n\n" + string.Join("\n", SupportAdmins), msg);
+                                        BotAdmins = SQL.GetBotAdmins();
+                                        Bot.Reply("Reloaded admins:\n\n<b>Support admins:</b>" + string.Join("\n", SupportAdmins) + "\n\n<b>Bot admins:</b>\n" + string.Join("\n", BotAdmins), msg);
                                         break;
 
                                     case "/setpin":
@@ -558,6 +558,7 @@ namespace GreyWolfSupportBot
                 string token;
                 int owner;
                 string support;
+                string adminchat;
 
                 Console.WriteLine("First use configuration");
 
@@ -594,13 +595,25 @@ namespace GreyWolfSupportBot
                 }
                 while (!rightFormat);
 
+                rightFormat = false;
+                error = "";
+
+                do
+                {
+                    Console.Write($"\n\n{error}Enter the chat ID of the admin chat:\n");
+                    adminchat = Console.ReadLine();
+                    rightFormat = long.TryParse(adminchat, out long dummy) && dummy < 0;
+                    error = "Invalid! ";
+                }
+                while (!rightFormat);
+
                 SQLiteConnection.CreateFile($"{Directory}\\{Database}");
                 RunNoResultQuery("create table botadmins (id int primary key not null unique)");
                 RunNoResultQuery("create table bananas (id int primary key not null unique)");
-                RunNoResultQuery("create table config (token varchar(255), defaultpin int, defaultwelc varchar(255), issuepin varchar(255), issuewelc varchar(255), supportid varchar(255))");
+                RunNoResultQuery("create table config (token varchar(255), defaultpin int, defaultwelc varchar(255), issuepin varchar(255), issuewelc varchar(255), supportid varchar(255), adminchat varchar(255))");
                 RunNoResultQuery("create table unpreferredgroups (id varchar(255) unique primary key, reason varchar(255))");
                 RunNoResultQuery($"insert into botadmins values ({owner})");
-                RunNoResultQuery($"insert into config values ('{token}', 0, 'dummy', 'dummy', 'dummy', '{support}')");
+                RunNoResultQuery($"insert into config values ('{token}', 0, 'dummy', 'dummy', 'dummy', '{support}', '{adminchat}')");
 
                 Console.Clear();
             }
@@ -611,6 +624,7 @@ namespace GreyWolfSupportBot
                 var comm = new SQLiteCommand(query, conn);
                 conn.Open();
                 comm.ExecuteNonQuery();
+                conn.Close();
             }
 
             public static List<int> GetBotAdmins()
@@ -686,12 +700,14 @@ namespace GreyWolfSupportBot
                 IssuePin = (string)reader[3];
                 IssueWelcome = (string)reader[4];
                 SupportId = long.Parse((string)reader[5]);
+                AdminchatId = long.Parse((string)reader[6]);
+                conn.Close();
             }
         }
 
         public static List<int> GetSupportAdmins()
         {
-            return Bot.Api.GetChatAdministratorsAsync(Support.Id).Result.Select(x => x.User.Id).ToList();
+            return Bot.Api.GetChatAdministratorsAsync(SupportId).Result.Select(x => x.User.Id).ToList();
         }
     }
 }
